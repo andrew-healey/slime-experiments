@@ -95,7 +95,7 @@ class StableDiffusion(L.LightningModule):
         return latents
 
 
-    def train_step(
+    def training_step(
             self,
             latents,
             timesteps,

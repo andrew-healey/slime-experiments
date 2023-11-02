@@ -51,7 +51,7 @@ class SLiME(L.LightningModule):
         for param in self.sd.parameters():
             param.requires_grad = False
 
-        [bos_token,initial_token,eos_token] = self.tokenizer(initial_name).input_ids
+        [bos_token,initial_token,eos_token] = self.sd.tokenizer(initial_name).input_ids
 
 
         token_embeds = self.sd.text_encoder.get_input_embeddings().weight.data
@@ -75,7 +75,7 @@ class SLiME(L.LightningModule):
 
         # Multipliers
 
-        num_crosses,num_selfs = self.sd.get_attn_nums()
+        num_crosses,num_selfs = self.sd.num_attention_maps()
 
         self.cross_layer_multiplier = Multiplier(num_crosses)
         self.self_layer_multiplier = Multiplier(num_selfs)
@@ -182,7 +182,7 @@ class SLiME(L.LightningModule):
         return loss
 
 
-    def train_step(
+    def training_step(
             self,
             batch,
             batch_idx,
@@ -204,7 +204,7 @@ class SLiME(L.LightningModule):
         # SLIME: sample timestamps from [5,100] as the paper recommends
         timesteps = self.timestep_range[0] + torch.randint(0, self.timestep_range[1] - self.timestep_range[0], (bsz,), device=self.device).long()
 
-        sd_loss,cross_attn_maps,self_attn_maps = self.sd.train_step(
+        sd_loss,cross_attn_maps,self_attn_maps = self.sd.training_step(
             latents,
             timesteps,
             input_text_embeds,
@@ -242,7 +242,7 @@ class SLiME(L.LightningModule):
         # SLIME: sample timestamps from [5,100] as the paper recommends
         timesteps = self.test_timestep * torch.ones((bsz,), device=self.device).long()
 
-        _,cross_attn_maps,self_attn_maps = self.sd.train_step(
+        _,cross_attn_maps,self_attn_maps = self.sd.training_step(
             latents,
             timesteps,
             input_text_embeds,
