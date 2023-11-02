@@ -74,8 +74,8 @@ class StableDiffusion(L.LightningModule):
                     self.__self_attn_maps.append(None)
 
                     transformer_block = attn.transformer_blocks[0]
-                    transformer_block.attn1.set_processor(cross_processor)
-                    transformer_block.attn2.set_processor(self_processor)
+                    transformer_block.attn2.set_processor(cross_processor)
+                    transformer_block.attn1.set_processor(self_processor)
 
 
         self.noise_scheduler = DDPMScheduler.from_config(pretrained_model_name_or_path, subfolder="scheduler")

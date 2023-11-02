@@ -100,11 +100,13 @@ class SLiME(L.LightningModule):
         # assert len(cross_attn_maps[0]) == self.text_tokens, f"Expected {self.text_tokens} cross maps, got {len(cross_attn_maps[0])}"
 
         # convert from many heads to one
-        unified_cross_maps = [self.mean_across_heads(map).permute((0,2,1))[:,1:-1,:] for map in cross_attn_maps]# B,txt_tokens,im_tokens
-        unified_self_maps = [self.mean_across_heads(map) for map in self_attn_maps]
+        unified_cross_maps = [self.mean_across_heads(map,bsz).permute((0,2,1))[:,1:-1,:] for map in cross_attn_maps]# B,txt_tokens,im_tokens
+        unified_self_maps = [self.mean_across_heads(map,bsz) for map in self_attn_maps]
 
         normed_cross_maps = [map/map.norm(dim=-1,keepdim=True) for map in unified_cross_maps] # normalize rows
         normed_self_maps = [map/map.norm(dim=-2,keepdim=True) for map in unified_self_maps] # normalize cols
+
+        import pdb;pdb.set_trace()
 
         mean_cross_maps = torch.zeros((bsz,self.text_tokens,gt_tokens),device=self.device)
         for i,map in enumerate(normed_cross_maps):
