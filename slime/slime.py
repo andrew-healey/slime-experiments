@@ -10,7 +10,7 @@ import pytorch_lightning as L
 from .sd import StableDiffusion
 from .multiplier import Multiplier
 
-from typing import Tuple
+from typing import Tuple, List
 
 import itertools
 
@@ -32,6 +32,11 @@ class SLiME(L.LightningModule):
 
             alpha: float = 0.0,
             beta: float = 0.005,
+
+            cross_attn_nums: List[int] = [8,9,10,11,12],
+            self_attn_nums: List[int] = [14,15,16],
+
+            use_self_attn: bool = True,
     ):
 
         super().__init__()
@@ -44,6 +49,11 @@ class SLiME(L.LightningModule):
 
         self.alpha = alpha
         self.beta = beta
+
+        self.cross_attn_nums = cross_attn_nums
+        self.self_attn_nums = self_attn_nums
+
+        self.use_self_attn = use_self_attn
 
         self.sd = StableDiffusion(pretrained_model_name_or_path)
 
@@ -108,6 +118,10 @@ class SLiME(L.LightningModule):
 
         mean_cross_maps = torch.zeros((bsz,self.text_tokens,gt_tokens),device=self.device)
         for i,map in enumerate(normed_cross_maps):
+
+            if i+1 not in self.cross_attn_nums:
+                continue
+
             _,_,im_tokens = map.shape
             im_dim = int(math.sqrt(im_tokens))
 
@@ -115,7 +129,7 @@ class SLiME(L.LightningModule):
             final = resized.view(bsz,self.text_tokens,gt_tokens)
 
             # TODO simplify this - maybe remove norm?
-            scale = final.norm(dim=-1,keepdim=True) * len(unified_cross_maps) / torch.exp(self.cross_layer_multiplier.weight[i])
+            scale = final.norm(dim=-1,keepdim=True) / torch.exp(self.cross_layer_multiplier.weight[i])
             final = final / scale
 
             mean_cross_maps += final
@@ -123,6 +137,10 @@ class SLiME(L.LightningModule):
 
         mean_self_maps = torch.zeros((bsz,gt_tokens,gt_tokens),device=self.device)
         for i,map in enumerate(normed_self_maps):
+
+            if i+1 not in self.self_attn_nums:
+                continue
+
             _,im_tokens,_ = map.shape
             im_dim = int(math.sqrt(im_tokens))
 
@@ -133,22 +151,22 @@ class SLiME(L.LightningModule):
 
             final = t_resized.view(bsz,gt_tokens,gt_tokens).permute(0,2,1)
 
-            scale = final.norm(dim=-2,keepdim=True) * len(unified_self_maps) / torch.exp(self.self_layer_multiplier.weight[i])
+            scale = final.norm(dim=-2,keepdim=True) / torch.exp(self.self_layer_multiplier.weight[i])
             final = final / scale
 
             mean_self_maps += final
 
 
         reshaped_cross_maps = mean_cross_maps.view(bsz,self.text_tokens,*gt_dims).permute(0,2,3,1)
-        was_maps = torch.bmm(mean_cross_maps,mean_self_maps).view((bsz,self.text_tokens,*gt_dims)).permute(0,2,3,1) / gt_tokens
-
         cross_preds = reshaped_cross_maps.view(bsz,-1,self.text_tokens)
-        self_preds = was_maps.view(bsz,-1,self.text_tokens)
-
         cross_preds = self.cross_map_multiplier(cross_preds)
-        self_preds = self.pred_map_multiplier(self_preds)
 
-        preds = cross_preds + self_preds
+        if self.use_self_attn:
+            was_maps = torch.bmm(mean_cross_maps,mean_self_maps).view((bsz,self.text_tokens,*gt_dims)).permute(0,2,3,1) / gt_tokens
+            self_preds = was_maps.view(bsz,-1,self.text_tokens)
+            self_preds = self.pred_map_multiplier(self_preds)
+
+        preds = cross_preds + self_preds if self.use_self_attn else cross_preds
 
         return preds # shape (bsz,gt_tokens,self.text_tokens)
     
@@ -164,7 +182,7 @@ class SLiME(L.LightningModule):
 
         assert self.classes == 1, f"Loss is only implemented for 1 class right now, got {self.classes}"
 
-        targets = gt_masks.view(bsz,-1,self.text_tokens)
+        targets = gt_masks.view(bsz,-1)
 
         # TODO: switch this to cross_entropy
         ce_loss = F.binary_cross_entropy_with_logits(pred[:,:,1],targets)
