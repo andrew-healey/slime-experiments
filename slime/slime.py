@@ -106,8 +106,6 @@ class SLiME(L.LightningModule):
         normed_cross_maps = [map/map.norm(dim=-1,keepdim=True) for map in unified_cross_maps] # normalize rows
         normed_self_maps = [map/map.norm(dim=-2,keepdim=True) for map in unified_self_maps] # normalize cols
 
-        import pdb;pdb.set_trace()
-
         mean_cross_maps = torch.zeros((bsz,self.text_tokens,gt_tokens),device=self.device)
         for i,map in enumerate(normed_cross_maps):
             _,_,im_tokens = map.shape
