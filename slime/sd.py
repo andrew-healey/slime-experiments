@@ -70,6 +70,9 @@ class StableDiffusion(L.LightningModule):
                     cross_processor = CustomAttnProcessor(self.__cross_attn_maps, len(self.__cross_attn_maps))
                     self_processor = CustomAttnProcessor(self.__self_attn_maps, len(self.__self_attn_maps))
 
+                    self.__cross_attn_maps.append(None)
+                    self.__self_attn_maps.append(None)
+
                     transformer_block = attn.transformer_blocks[0]
                     transformer_block.attn1.set_processor(cross_processor)
                     transformer_block.attn2.set_processor(self_processor)

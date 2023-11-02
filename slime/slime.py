@@ -202,7 +202,7 @@ class SLiME(L.LightningModule):
 
         latents = self.sd.get_latents(pixel_values)
         # SLIME: sample timestamps from [5,100] as the paper recommends
-        timesteps = self.timestep_range[0] + torch.randint(0, self.timestep_range[1] - self.timestep_range[0], (bsz,), device=self.device).long()
+        timesteps = self.train_timestep_range[0] + torch.randint(0, self.train_timestep_range[1] - self.train_timestep_range[0], (bsz,), device=self.device).long()
 
         sd_loss,cross_attn_maps,self_attn_maps = self.sd.training_step(
             latents,
