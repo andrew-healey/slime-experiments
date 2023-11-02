@@ -97,6 +97,8 @@ class SLiME(L.LightningModule):
         self.cross_map_multiplier = Multiplier(self.text_tokens)
         self.pred_map_multiplier = Multiplier(self.text_tokens)
 
+        self.latest_preds = []
+
     def mean_across_heads(self,mat,bsz):
         # convert (bh,*_) to (b,h,*_) then sum across h dimension
         bh,*rest = mat.shape
@@ -250,6 +252,9 @@ class SLiME(L.LightningModule):
         )
 
         self.log("duration",time.time()-start_time)
+
+        self.latest_preds.append(pred.detach().cpu().numpy())
+        self.latest_preds = self.latest_preds[-10:]
 
         return loss
 
