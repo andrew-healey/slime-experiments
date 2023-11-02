@@ -164,11 +164,11 @@ class SLiME(L.LightningModule):
 
         assert self.classes == 1, f"Loss is only implemented for 1 class right now, got {self.classes}"
 
-        targets = gt_masks.view(bsz,-1).float()
+        targets = gt_masks.view(bsz,-1,self.text_tokens)
 
         # TODO: switch this to cross_entropy
         ce_loss = F.binary_cross_entropy_with_logits(pred[:,:,1],targets)
-        mse_loss = F.mse_loss(pred,gt_masks_oh.view((bsz,-1,self.text_tokens)))
+        mse_loss = torch.tensor(0,device=self.device)#F.mse_loss(pred,gt_masks_oh.view((bsz,-1,self.text_tokens)))
 
         loss = ce_loss + self.alpha * mse_loss + self.beta * sd_loss
 
