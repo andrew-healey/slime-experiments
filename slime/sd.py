@@ -19,6 +19,9 @@ class StableDiffusion(L.LightningModule):
             pretrained_model_name_or_path: str,
             timestep_range: Tuple[int, int] = (5, 100),
         ):
+
+        super().__init__()
+
         self.tokenizer = CLIPTokenizer.from_pretrained(
             pretrained_model_name_or_path,
             subfolder="tokenizer",

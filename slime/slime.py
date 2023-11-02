@@ -34,6 +34,8 @@ class SLiME(L.LightningModule):
             beta: float = 0.005,
     ):
 
+        super().__init__()
+
         self.train_timestamp_range = train_timestep_range
         self.test_timestep = test_timestep
 
