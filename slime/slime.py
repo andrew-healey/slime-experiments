@@ -30,7 +30,7 @@ class SLiME(L.LightningModule):
             lr: float = 0.01,
             multiplier_lr: float = 0.5,
 
-            alpha: float = 1.0,
+            alpha: float = 0.0,
             beta: float = 0.005,
     ):
 
@@ -168,7 +168,7 @@ class SLiME(L.LightningModule):
 
         # TODO: switch this to cross_entropy
         ce_loss = F.binary_cross_entropy_with_logits(pred[:,:,1],targets)
-        mse_loss = F.mse_loss(pred,gt_masks_oh)
+        mse_loss = F.mse_loss(pred,gt_masks_oh.view((bsz,-1,self.text_tokens)))
 
         loss = ce_loss + self.alpha * mse_loss + self.beta * sd_loss
 
