@@ -113,18 +113,24 @@ class SLiME(L.LightningModule):
         # cross_attn_maps = [cross_attn_map[1:-1] for cross_attn_map in cross_attn_maps] # remove bos and eos tokens
         # assert len(cross_attn_maps[0]) == self.text_tokens, f"Expected {self.text_tokens} cross maps, got {len(cross_attn_maps[0])}"
 
+        # clear out unused
+
+        for i in range(len(cross_attn_maps)):
+            if i+1 not in self.cross_attn_nums:
+                cross_attn_maps[i] = None
+        for i in range(len(self_attn_maps)):
+            if i+1 not in self.self_attn_nums:
+                self_attn_maps[i] = None
+
         # convert from many heads to one
-        unified_cross_maps = [self.mean_across_heads(map,bsz).permute((0,2,1))[:,1:-1,:] for map in cross_attn_maps]# B,txt_tokens,im_tokens
-        unified_self_maps = [self.mean_across_heads(map,bsz) for map in self_attn_maps]
+        unified_cross_maps = [self.mean_across_heads(map,bsz).permute((0,2,1))[:,1:-1,:] for i,map in cross_attn_maps if i+1 in self.cross_attn_nums]# B,txt_tokens,im_tokens
+        unified_self_maps = [self.mean_across_heads(map,bsz) for map in i,self_attn_maps if i+1 in self.self_attn_nums]
 
         normed_cross_maps = [map/map.norm(dim=-1,keepdim=True) for map in unified_cross_maps] # normalize rows
         normed_self_maps = [map/map.norm(dim=-2,keepdim=True) for map in unified_self_maps] # normalize cols
 
         mean_cross_maps = torch.zeros((bsz,self.text_tokens,gt_tokens),device=self.device)
         for i,map in enumerate(normed_cross_maps):
-
-            if i+1 not in self.cross_attn_nums:
-                continue
 
             _,_,im_tokens = map.shape
             im_dim = int(math.sqrt(im_tokens))
@@ -141,9 +147,6 @@ class SLiME(L.LightningModule):
 
         mean_self_maps = torch.zeros((bsz,gt_tokens,gt_tokens),device=self.device)
         for i,map in enumerate(normed_self_maps):
-
-            if i+1 not in self.self_attn_nums:
-                continue
 
             _,im_tokens,_ = map.shape
             im_dim = int(math.sqrt(im_tokens))

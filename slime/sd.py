@@ -48,6 +48,8 @@ class StableDiffusion(L.LightningModule):
         # Keep vae in eval mode as we don't train it
         self.vae.eval()
 
+        del self.vae.decoder
+
         # SLIME: we modify this UNet2DConditionModel
         self.unet = UNet2DConditionModel.from_pretrained(
             pretrained_model_name_or_path, subfolder="unet"
