@@ -83,7 +83,7 @@ class SLiME(L.LightningModule):
         self.cross_map_multiplier = Multiplier(self.text_tokens)
         self.pred_map_multiplier = Multiplier(self.text_tokens)
 
-    def mean_across_heads(mat,bsz):
+    def mean_across_heads(self,mat,bsz):
         # convert (bh,*_) to (b,h,*_) then sum across h dimension
         bh,*rest = mat.shape
         return mat.view(bsz,-1,*rest).mean(1)
@@ -96,11 +96,11 @@ class SLiME(L.LightningModule):
         ):
         gt_tokens = gt_dims[0] * gt_dims[1]
 
-        cross_attn_maps = [cross_attn_map[1:-1] for cross_attn_map in cross_attn_maps] # remove bos and eos tokens
-        assert len(cross_attn_maps[0]) == self.text_tokens, f"Expected {self.text_tokens} cross maps, got {len(cross_maps)}"
+        # cross_attn_maps = [cross_attn_map[1:-1] for cross_attn_map in cross_attn_maps] # remove bos and eos tokens
+        # assert len(cross_attn_maps[0]) == self.text_tokens, f"Expected {self.text_tokens} cross maps, got {len(cross_attn_maps[0])}"
 
         # convert from many heads to one
-        unified_cross_maps = [self.mean_across_heads(map).permute((0,2,1)) for map in cross_attn_maps]# B,txt_tokens,im_tokens
+        unified_cross_maps = [self.mean_across_heads(map).permute((0,2,1))[:,1:-1,:] for map in cross_attn_maps]# B,txt_tokens,im_tokens
         unified_self_maps = [self.mean_across_heads(map) for map in self_attn_maps]
 
         normed_cross_maps = [map/map.norm(dim=-1,keepdim=True) for map in unified_cross_maps] # normalize rows
