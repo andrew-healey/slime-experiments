@@ -9,7 +9,7 @@ import pytorch_lightning as L
 from transformers import CLIPFeatureExtractor, CLIPTextModel, CLIPTokenizer
 from diffusers import AutoencoderKL, DDPMScheduler, PNDMScheduler, StableDiffusionPipeline, UNet2DConditionModel
 
-from .attention_processor import CustomAttnProcessor
+from .attn_processor import CustomAttnProcessor
 
 from typing import Tuple
 

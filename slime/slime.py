@@ -24,7 +24,6 @@ class SLiME(L.LightningModule):
             train_timestep_range: Tuple[int, int] = (5, 100),
             test_timestep: int = 100,
 
-            device: str = "cuda",
             classes: int = 1,
             initial_name: str = "part",
 
@@ -35,8 +34,6 @@ class SLiME(L.LightningModule):
             beta: float = 0.005,
     ):
 
-        self.device = device
-
         self.train_timestamp_range = train_timestep_range
         self.test_timestep = test_timestep
 
@@ -46,7 +43,7 @@ class SLiME(L.LightningModule):
         self.alpha = alpha
         self.beta = beta
 
-        self.sd = StableDiffusion(pretrained_model_name_or_path).to(device)
+        self.sd = StableDiffusion(pretrained_model_name_or_path)
 
         # freeze all sd parameters
         for param in self.sd.parameters():
@@ -64,12 +61,12 @@ class SLiME(L.LightningModule):
         self.classes = classes
         self.text_tokens = classes + 1 # a background class + classes
 
-        self.input_text_embeds = torch.zeros((1 + self.text_tokens + 1,embedding_dim), device=device)
+        self.input_text_embeds = torch.zeros((1 + self.text_tokens + 1,embedding_dim))
         self.input_text_embeds[0] = bos_embedding
         # leave the middle embeddings as 0 -- these will be a learnable parameter
         self.input_text_embeds[self.text_tokens+1] = eos_embedding
 
-        cls_text_embeds = torch.zeros((self.text_tokens,embedding_dim), device=device)
+        cls_text_embeds = torch.zeros((self.text_tokens,embedding_dim))
         cls_text_embeds[:] = token_embeds[initial_token]
 
         self.cls_text_embeds = nn.Parameter(cls_text_embeds)
@@ -78,11 +75,11 @@ class SLiME(L.LightningModule):
 
         num_crosses,num_selfs = self.sd.get_attn_nums()
 
-        self.cross_layer_multiplier = Multiplier(num_crosses).to(device)
-        self.self_layer_multiplier = Multiplier(num_selfs).to(device)
+        self.cross_layer_multiplier = Multiplier(num_crosses)
+        self.self_layer_multiplier = Multiplier(num_selfs)
 
-        self.cross_map_multiplier = Multiplier(self.text_tokens).to(device)
-        self.pred_map_multiplier = Multiplier(self.text_tokens).to(device)
+        self.cross_map_multiplier = Multiplier(self.text_tokens)
+        self.pred_map_multiplier = Multiplier(self.text_tokens)
 
     def mean_across_heads(mat,bsz):
         # convert (bh,*_) to (b,h,*_) then sum across h dimension
