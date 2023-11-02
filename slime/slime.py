@@ -161,7 +161,6 @@ class SLiME(L.LightningModule):
         ):
 
         bsz,*gt_dims = gt_masks.shape
-        print(gt_masks.shape)
 
         assert self.classes == 1, f"Loss is only implemented for 1 class right now, got {self.classes}"
 
