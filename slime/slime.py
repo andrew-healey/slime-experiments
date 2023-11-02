@@ -5,7 +5,7 @@ import torch.nn.functional as F
 import torchvision.transforms.functional as TVF
 import torch.utils.checkpoint
 from torch.utils.data import Dataset
-import lightning as L
+import pytorch_lightning as L
 
 from .sd import StableDiffusion
 from .multiplier import Multiplier

@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import torchvision.transforms.functional as TVF
 import torch.utils.checkpoint
 from torch.utils.data import Dataset
-import lightning as L
+import pytorch_lightning as L
 
 from transformers import CLIPFeatureExtractor, CLIPTextModel, CLIPTokenizer
 from diffusers import AutoencoderKL, DDPMScheduler, PNDMScheduler, StableDiffusionPipeline, UNet2DConditionModel
