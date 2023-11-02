@@ -36,7 +36,7 @@ class SLiME(L.LightningModule):
 
         super().__init__()
 
-        self.train_timestamp_range = train_timestep_range
+        self.train_timestep_range = train_timestep_range
         self.test_timestep = test_timestep
 
         self.lr = lr
@@ -96,8 +96,8 @@ class SLiME(L.LightningModule):
         ):
         gt_tokens = gt_dims[0] * gt_dims[1]
 
-        cross_maps = [cross_map[1:-1] for cross_map in cross_maps] # remove bos and eos tokens
-        assert len(cross_maps[0]) == self.text_tokens, f"Expected {self.text_tokens} cross maps, got {len(cross_maps)}"
+        cross_attn_maps = [cross_attn_map[1:-1] for cross_attn_map in cross_attn_maps] # remove bos and eos tokens
+        assert len(cross_attn_maps[0]) == self.text_tokens, f"Expected {self.text_tokens} cross maps, got {len(cross_maps)}"
 
         # convert from many heads to one
         unified_cross_maps = [self.mean_across_heads(map).permute((0,2,1)) for map in cross_attn_maps]# B,txt_tokens,im_tokens
@@ -196,7 +196,7 @@ class SLiME(L.LightningModule):
         bsz,*gt_dims = gt_masks.shape
         assert len(gt_dims) == 2, f"Expected 2D masks, got {gt_dims}"
 
-        input_text_embeds = self.input_text_embeds.clone()
+        input_text_embeds = self.input_text_embeds.clone().to(self.device)
         input_text_embeds[1:self.text_tokens+1] = self.cls_text_embeds
         input_text_embeds = input_text_embeds.unsqueeze(0).expand(bsz,-1,-1)
 
@@ -259,7 +259,7 @@ class SLiME(L.LightningModule):
     
     def configure_optimizers(self):
         return torch.optim.AdamW([
-            {'params': self.cls_text_embeds.parameters(), 'lr': self.lr},
+            {'params': [self.cls_text_embeds], 'lr': self.lr},
             {'params': itertools.chain(
                 self.cross_layer_multiplier.parameters(),
                 self.self_layer_multiplier.parameters(),
