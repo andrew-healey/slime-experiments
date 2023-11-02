@@ -84,7 +84,7 @@ class SegmentationDataModule(L.LightningDataModule):
         self.seg_dataset = seg_dataset
         self.iters_per_epoch = iters_per_epoch
     
-    def cycle(iterable,max_iters):
+    def cycle(self,iterable,max_iters):
       iters = 0
       while iters < max_iters:
           for x in iterable:
