@@ -244,7 +244,7 @@ class SLiME(L.LightningModule):
             bsz,gt_dims,
         )
 
-        loss = self.loss(
+        loss,losses = self.loss(
             sd_loss,
             pred,
             gt_masks,
@@ -262,11 +262,13 @@ class SLiME(L.LightningModule):
     def predict_step(
             self,
             batch,
-            batch_idx
+            batch_idx,
+            gt_dim=64
     ):
         pixel_values = batch["pixel_values"].to(self.device)
 
-        bsz,_,*gt_dims = pixel_values.shape
+        bsz,*_ = pixel_values.shape
+        gt_dims = (gt_dim,gt_dim)
 
         input_text_embeds = self.input_text_embeds.clone().to(self.device)
         input_text_embeds[1:self.text_tokens+1] = self.cls_text_embeds
