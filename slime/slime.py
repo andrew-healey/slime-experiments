@@ -263,7 +263,7 @@ class SLiME(L.LightningModule):
 
         bsz,_,*gt_dims = pixel_values.shape
 
-        input_text_embeds = self.input_text_embeds.clone()
+        input_text_embeds = self.input_text_embeds.clone().to(self.device)
         input_text_embeds[1:self.text_tokens+1] = self.cls_text_embeds
         input_text_embeds = input_text_embeds.unsqueeze(0).expand(bsz,-1,-1)
 
