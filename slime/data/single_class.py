@@ -70,21 +70,33 @@ class BinarySegmentationDataset(Dataset):
     example["gt_masks_oh"] = mask_torch_oh
     return example
 
+
 class SegmentationDataModule(L.LightningDataModule):
     batch_size: int = 2
+    iters_per_epoch: int = 50
 
     def __init__(
         self,
         seg_dataset: Dataset,
+        iters_per_epoch:int=50
     ):
         super().__init__()
         self.seg_dataset = seg_dataset
+        self.iters_per_epoch = iters_per_epoch
+    
+    def cycle(iterable,max_iters):
+      iters = 0
+      while iters < max_iters:
+          for x in iterable:
+              yield x
+              iters+=1
 
     def train_dataloader(self):
-        return torch.utils.data.DataLoader(
+        loader = torch.utils.data.DataLoader(
             self.seg_dataset,
             batch_size=self.batch_size,
             shuffle=True,
             pin_memory=True,
             drop_last=False,
         )
+        return self.cycle(loader,self.iters_per_epoch)

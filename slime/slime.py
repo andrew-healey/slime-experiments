@@ -15,6 +15,7 @@ from typing import Tuple, List
 import itertools
 
 import math
+import time
 
 class SLiME(L.LightningModule):
     def __init__(
@@ -82,6 +83,9 @@ class SLiME(L.LightningModule):
         cls_text_embeds[:] = token_embeds[initial_token]
 
         self.cls_text_embeds = nn.Parameter(cls_text_embeds)
+
+        del self.sd.text_encoder
+        del self.sd.tokenizer
 
         # Multipliers
 
@@ -182,7 +186,7 @@ class SLiME(L.LightningModule):
 
         assert self.classes == 1, f"Loss is only implemented for 1 class right now, got {self.classes}"
 
-        targets = gt_masks.view(bsz,-1)
+        targets = gt_masks.view(bsz,-1).float()
 
         # TODO: switch this to cross_entropy
         ce_loss = F.binary_cross_entropy_with_logits(pred[:,:,1],targets)
@@ -205,6 +209,7 @@ class SLiME(L.LightningModule):
             batch,
             batch_idx,
     ):
+        start_time = time.time()
 
         pixel_values = batch["pixel_values"].to(self.device)
 
@@ -240,6 +245,8 @@ class SLiME(L.LightningModule):
             gt_masks,
             gt_masks_oh,
         )
+
+        self.log("duration",time.time()-start_time)
 
         return loss
 
