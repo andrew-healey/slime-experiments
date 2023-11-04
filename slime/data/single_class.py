@@ -82,11 +82,13 @@ class SegmentationDataModule(L.LightningDataModule):
 
     def __init__(
         self,
-        seg_dataset: Dataset,
+        train_dataset: Dataset,
+        test_dataset: Dataset=None,
         iters_per_epoch:int=50
     ):
         super().__init__()
-        self.seg_dataset = seg_dataset
+        self.train_dataset = train_dataset
+        self.test_dataset = test_dataset
         self.iters_per_epoch = iters_per_epoch
     
     def cycle(self,iterable,max_iters):
@@ -98,10 +100,21 @@ class SegmentationDataModule(L.LightningDataModule):
 
     def train_dataloader(self):
         loader = torch.utils.data.DataLoader(
-            self.seg_dataset,
+            self.train_dataset,
             batch_size=self.batch_size,
             shuffle=True,
             pin_memory=True,
             drop_last=False,
         )
         return self.cycle(loader,self.iters_per_epoch)
+
+    def test_dataloader(self):
+      if self.test_dataset is None:
+        return None
+      return torch.utils.data.DataLoader(
+          self.test_dataset,
+          batch_size=self.batch_size,
+          shuffle=True,
+          pin_memory=True,
+          drop_last=False,
+      )
