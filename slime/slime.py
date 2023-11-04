@@ -187,7 +187,7 @@ class SLiME(L.LightningModule):
             gt_masks_oh,
         ):
 
-        bsz,*gt_dims = gt_masks.shape
+        bsz,*gt_dims,_ = gt_masks_oh.shape
 
         assert self.classes == 1, f"Loss is only implemented for 1 class right now, got {self.classes}"
 
@@ -217,10 +217,10 @@ class SLiME(L.LightningModule):
 
         pixel_values = batch["pixel_values"].to(self.device)
 
-        gt_masks = batch["gt_masks"].to(self.device)
+        gt_masks = None#batch["gt_masks"].to(self.device)
         gt_masks_oh = batch["gt_masks_oh"].to(self.device)
 
-        bsz,*gt_dims = gt_masks.shape
+        bsz,*gt_dims,_ = gt_masks_oh.shape
         assert len(gt_dims) == 2, f"Expected 2D masks, got {gt_dims}"
 
         input_text_embeds = self.input_text_embeds.clone().to(self.device)
