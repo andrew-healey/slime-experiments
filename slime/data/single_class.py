@@ -29,7 +29,10 @@ class BinarySegmentationDataset(Dataset):
     self.mask_size=mask_size
 
     self.image_paths = [os.path.join(self.data_root, file_path) for file_path in os.listdir(self.data_root)]
-    self.mask_paths = [os.path.join(self.mask_root, file_path) for file_path in os.listdir(self.mask_root)]
+    if self.mask_root is not None:
+      self.mask_paths = [os.path.join(self.mask_root, file_path) for file_path in os.listdir(self.mask_root)]
+    else:
+      self.mask_paths = None
 
     self.num_images = len(self.image_paths)
     self._length = self.num_images
@@ -47,7 +50,6 @@ class BinarySegmentationDataset(Dataset):
   def __getitem__(self, i):
     example = {}
     image = Image.open(self.image_paths[i % self.num_images])
-    mask = Image.open(self.mask_paths[i % self.num_images])
 
     if not image.mode == "RGB":
         image = image.convert("RGB")
@@ -63,8 +65,12 @@ class BinarySegmentationDataset(Dataset):
 
     example["pixel_values"] = torch.from_numpy(image).permute(2, 0, 1)
 
-    mask_torch = (TVF.pil_to_tensor(mask.resize((self.mask_size,self.mask_size),resample=self.interpolation))[0] > 0).to(torch.int64)
-    mask_torch_oh = F.one_hot(mask_torch,num_classes=2) # hardcode to (background,foreground)
+    if self.mask_root is not None:
+      mask = Image.open(self.mask_paths[i % self.num_images])
+      mask_torch = (TVF.pil_to_tensor(mask.resize((self.mask_size,self.mask_size),resample=self.interpolation))[0] > 0).to(torch.int64)
+      mask_torch_oh = F.one_hot(mask_torch,num_classes=2) # hardcode to (background,foreground)
+    else:
+      mask_torch_oh = None
 
     example["gt_masks_oh"] = mask_torch_oh
     return example
