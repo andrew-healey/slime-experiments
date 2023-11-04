@@ -72,7 +72,7 @@ class SLiME(L.LightningModule):
         embedding_dim = initial_embedding.shape[0]
 
         self.classes = classes
-        self.text_tokens = classes + 1 # a background class + classes
+        self.text_tokens = classes + 0 # a background class + classes
 
         self.input_text_embeds = torch.zeros((1 + self.text_tokens + 1,embedding_dim))
         self.input_text_embeds[0] = bos_embedding
@@ -191,10 +191,9 @@ class SLiME(L.LightningModule):
 
         assert self.classes == 1, f"Loss is only implemented for 1 class right now, got {self.classes}"
 
-        targets = gt_masks.view(bsz,-1).float()
+        targets = gt_masks_oh.view(bsz,-1,self.text_tokens).float()
 
-        # TODO: switch this to cross_entropy
-        ce_loss = F.binary_cross_entropy_with_logits(pred[:,:,1],targets)
+        ce_loss = F.binary_cross_entropy_with_logits(pred,targets)
         mse_loss = torch.tensor(0,device=self.device)#F.mse_loss(pred,gt_masks_oh.view((bsz,-1,self.text_tokens)))
 
         loss = ce_loss + self.alpha * mse_loss + self.beta * sd_loss
