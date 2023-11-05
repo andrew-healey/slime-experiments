@@ -68,11 +68,12 @@ class BinarySegmentationDataset(Dataset):
     if self.mask_root is not None:
       mask = Image.open(self.mask_paths[i % self.num_images])
       mask_torch = (TVF.pil_to_tensor(mask.resize((self.mask_size,self.mask_size),resample=self.interpolation))[0] > 0)
+      mask_torch_oh = mask_torch[...,None]
+      example["gt_masks_oh"] = mask_torch_oh
       # mask_torch_oh = F.one_hot(mask_torch,num_classes=2) # hardcode to (background,foreground)
     else:
       mask_torch_oh = None
 
-    example["gt_masks_oh"] = mask_torch
     return example
 
 
