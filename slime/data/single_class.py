@@ -85,12 +85,14 @@ class SegmentationDataModule(L.LightningDataModule):
         self,
         train_dataset: Dataset,
         test_dataset: Dataset=None,
-        iters_per_epoch:int=50
+        iters_per_epoch:int=50,
+        batch_size:int=2,
     ):
         super().__init__()
         self.train_dataset = train_dataset
         self.test_dataset = test_dataset
         self.iters_per_epoch = iters_per_epoch
+        self.batch_size = batch_size
     
     def cycle(self,iterable,max_iters):
       iters = 0

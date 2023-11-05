@@ -3,7 +3,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 import torchvision.transforms.functional as TVF
-from torch.nn import InstanceNorm2d
+from torch.nn import InstanceNorm2d,BatchNorm2d
 import torch.utils.checkpoint
 from torch.utils.data import Dataset
 import pytorch_lightning as L
@@ -75,7 +75,7 @@ class SLiME(L.LightningModule):
         embedding_dim = initial_embedding.shape[0]
 
         self.classes = classes
-        self.text_tokens = classes + 0 # a background class + classes
+        self.text_tokens = classes + 1 # a background class + classes
 
         self.input_text_embeds = torch.zeros((1 + self.text_tokens + 1,embedding_dim))
         self.input_text_embeds[0] = bos_embedding
@@ -100,7 +100,7 @@ class SLiME(L.LightningModule):
         self.cross_map_multiplier = Multiplier(self.text_tokens)
         self.pred_map_multiplier = Multiplier(self.text_tokens)
 
-        self.cross_norm = InstanceNorm2d(len(cross_attn_nums),affine=True)
+        self.cross_norm = BatchNorm2d(len(cross_attn_nums),affine=True)
 
         self.latest_preds = []
 
@@ -142,6 +142,7 @@ class SLiME(L.LightningModule):
         for i,map in enumerate(unified_cross_maps):
 
             map = map[:,1:-1]
+            assert map.shape[1] == self.text_tokens
 
             _,_,im_tokens = map.shape
             im_dim = int(math.sqrt(im_tokens))
@@ -149,14 +150,16 @@ class SLiME(L.LightningModule):
             resized = F.interpolate(map.view(bsz,self.text_tokens,im_dim,im_dim),size=gt_dims,mode='bicubic')
             final = resized.view(bsz,self.text_tokens,gt_tokens)
 
-            mean_cross_maps[:,i] = final
+            mean_cross_maps[:,i] = final * 10
 
             # # TODO simplify this - maybe remove norm?
             # scale = torch.exp(self.cross_layer_multiplier.weight[i])
             # final = final / scale
 
             # mean_cross_maps +=
-        mean_cross_map = self.cross_norm(mean_cross_maps).sum(dim=1)
+        
+        # import pdb; pdb.set_trace()
+        mean_cross_map = mean_cross_maps.mean(dim=1)#self.cross_norm(mean_cross_maps).mean(dim=1)
 
         print(mean_cross_maps.mean())
 
@@ -184,7 +187,7 @@ class SLiME(L.LightningModule):
 
         reshaped_cross_maps = mean_cross_map.view(bsz,self.text_tokens,*gt_dims).permute(0,2,3,1)
         cross_preds = reshaped_cross_maps.view(bsz,-1,self.text_tokens)
-        # cross_preds = self.cross_map_multiplier(cross_preds)
+        cross_preds = self.cross_map_multiplier(cross_preds)
         # import pdb;pdb.set_trace()
         # cross_preds = self.cross_norm(cross_preds)
 
@@ -194,6 +197,9 @@ class SLiME(L.LightningModule):
             self_preds = self.pred_map_multiplier(self_preds)
 
         preds = cross_preds + self_preds if self.use_self_attn else cross_preds
+
+        # preds = preds[:,:,1:]
+        assert preds.shape[2] == self.text_tokens,f"Preds shape is {preds.shape}"
 
         # import pdb; pdb.set_trace()
 
@@ -211,10 +217,10 @@ class SLiME(L.LightningModule):
 
         assert self.classes == 1, f"Loss is only implemented for 1 class right now, got {self.classes}"
 
-        targets = gt_masks_oh.view(bsz,-1,self.text_tokens).float()
+        targets = gt_masks_oh.view(bsz,-1,self.classes).float()
 
         ce_loss = F.binary_cross_entropy_with_logits(pred,targets)
-        mse_loss = F.mse_loss(pred,gt_masks_oh.view((bsz,-1,self.text_tokens)).float())
+        mse_loss = F.mse_loss(torch.sigmoid(pred),gt_masks_oh.view((bsz,-1,self.classes)).float())
         print("pred",pred.min().cpu().item(),pred.max().cpu().item(),"ce loss",ce_loss.cpu().item(),"mse loss",mse_loss.cpu().item(),"\n")
 
         # import pdb; pdb.set_trace()
@@ -268,7 +274,7 @@ class SLiME(L.LightningModule):
 
         loss = self.loss(
             sd_loss,
-            pred,
+            pred[:,:,1:],
             gt_masks,
             gt_masks_oh,
         )
