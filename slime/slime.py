@@ -18,6 +18,18 @@ import itertools
 import math
 import time
 
+def dice_loss(pred, target):
+    smooth = 1.
+
+    pred = torch.sigmoid(pred)
+
+    iflat = pred.contiguous().view(-1)
+    tflat = target.contiguous().view(-1)
+    intersection = (iflat * tflat).sum()
+
+    return 1 - ((2. * intersection + smooth) /
+              (iflat.sum() + tflat.sum() + smooth))
+
 class SLiME(L.LightningModule):
     def __init__(
             self,
@@ -34,6 +46,7 @@ class SLiME(L.LightningModule):
 
             alpha: float = 1.0,
             beta: float = 0.005,
+            gamma: float = 0.0,
 
             cross_attn_nums: List[int] = [8,9,10,11,12],
             self_attn_nums: List[int] = [14,15,16],
@@ -51,6 +64,7 @@ class SLiME(L.LightningModule):
 
         self.alpha = alpha
         self.beta = beta
+        self.gamma = gamma
 
         self.cross_attn_nums = cross_attn_nums
         self.self_attn_nums = self_attn_nums
@@ -147,10 +161,15 @@ class SLiME(L.LightningModule):
             _,_,im_tokens = map.shape
             im_dim = int(math.sqrt(im_tokens))
 
-            resized = F.interpolate(map.view(bsz,self.text_tokens,im_dim,im_dim),size=gt_dims,mode='bicubic')
+            reshaped_map = map.view(bsz,self.text_tokens,im_dim,im_dim)
+
+            # make sure interpolation preserves the mean of the map
+            scale_factor = gt_tokens / im_tokens
+            resized = F.interpolate(reshaped_map,size=gt_dims,mode='bicubic')
+
             final = resized.view(bsz,self.text_tokens,gt_tokens)
 
-            mean_cross_maps[:,i] = final * 10
+            mean_cross_maps[:,i] = final * (1 * scale_factor)
 
             # # TODO simplify this - maybe remove norm?
             # scale = torch.exp(self.cross_layer_multiplier.weight[i])
@@ -161,7 +180,8 @@ class SLiME(L.LightningModule):
         # import pdb; pdb.set_trace()
         mean_cross_map = mean_cross_maps.mean(dim=1)#self.cross_norm(mean_cross_maps).mean(dim=1)
 
-        print(mean_cross_maps.mean())
+        # print(mean_cross_maps.mean())
+        # import pdb; pdb.set_trace()
 
         del unified_cross_maps,mean_cross_maps
 
@@ -221,17 +241,20 @@ class SLiME(L.LightningModule):
 
         ce_loss = F.binary_cross_entropy_with_logits(pred,targets)
         mse_loss = F.mse_loss(torch.sigmoid(pred),gt_masks_oh.view((bsz,-1,self.classes)).float())
-        print("pred",pred.min().cpu().item(),pred.max().cpu().item(),"ce loss",ce_loss.cpu().item(),"mse loss",mse_loss.cpu().item(),"\n")
+        dice = dice_loss(pred,gt_masks_oh.view((bsz,-1,self.classes)).float())
+
+        print("pred", round(pred.min().cpu().item(), 2), round(pred.max().cpu().item(), 2), "ce loss", round(ce_loss.cpu().item(), 2), "mse loss", round(mse_loss.cpu().item(), 2), "dice loss", round(dice.cpu().item(), 2))
 
         # import pdb; pdb.set_trace()
 
-        loss = ce_loss + self.alpha * mse_loss + self.beta * sd_loss
+        loss = ce_loss + self.alpha * mse_loss + self.beta * sd_loss + self.gamma * dice
 
         self.log_dict({
             "loss": loss,
             "mse_loss": mse_loss,
             "sd_loss": sd_loss,
             "ce_loss": ce_loss,
+            "dice_loss": dice,
         })
 
         return loss

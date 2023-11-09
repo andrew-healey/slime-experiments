@@ -8,4 +8,4 @@ class Multiplier(nn.Module):
     self.bias = nn.Parameter(torch.zeros(size))
 
   def forward(self, x):
-    return x * self.weight + self.bias
+    return x * self.weight + self.bias/100

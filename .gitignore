@@ -3,3 +3,5 @@ __pycache__
 .vscode
 *.zip
 latest.diff
+run/
+my_concept*
