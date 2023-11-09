@@ -116,6 +116,8 @@ class SLiME(L.LightningModule):
 
         self.cross_norm = BatchNorm2d(len(cross_attn_nums),affine=True)
 
+        self.latest_xattns = []
+        self.latest_means = []
         self.latest_preds = []
 
     def mean_across_heads(self,mat,bsz):
@@ -177,8 +179,10 @@ class SLiME(L.LightningModule):
 
             # mean_cross_maps +=
         
-        # import pdb; pdb.set_trace()
+        self.latest_xattns = [map.cpu().detach().numpy() for map in cross_attn_maps if map is not None]
+        self.latest_means = [map.cpu().detach().numpy() for map in mean_cross_maps if map is not None]
         mean_cross_map = mean_cross_maps.mean(dim=1)#self.cross_norm(mean_cross_maps).mean(dim=1)
+        # import pdb; pdb.set_trace()
 
         # print(mean_cross_maps.mean())
         # import pdb; pdb.set_trace()
@@ -222,6 +226,9 @@ class SLiME(L.LightningModule):
         assert preds.shape[2] == self.text_tokens,f"Preds shape is {preds.shape}"
 
         # import pdb; pdb.set_trace()
+
+        self.latest_preds.append(preds.cpu().detach().numpy())
+        self.latest_preds = self.latest_preds[-10:]
 
         return preds # shape (bsz,gt_tokens,self.text_tokens)
     
@@ -303,9 +310,6 @@ class SLiME(L.LightningModule):
         )
 
         self.log("duration",time.time()-start_time)
-
-        self.latest_preds.append(pred.detach().cpu().numpy())
-        self.latest_preds = self.latest_preds[-10:]
 
         return loss
 
