@@ -13,6 +13,8 @@ import numpy as np
 """
 Generic binary segmentation dataset - performs semantic segmentation on a single class.
 """
+import albumentations as A
+
 class BinarySegmentationDataset(Dataset):
 
   def __init__(
@@ -22,11 +24,19 @@ class BinarySegmentationDataset(Dataset):
       size=512,
       mask_size=64,
       interpolation="bicubic",
+      random_crop=True,
+      horizontal_flip=True,
+      brightness_contrast_adjust=True,
+      num_augmentations=5,
   ):
     self.data_root = data_root
     self.mask_root = mask_root
     self.size = size
     self.mask_size=mask_size
+    self.random_crop = random_crop
+    self.horizontal_flip = horizontal_flip
+    self.brightness_contrast_adjust = brightness_contrast_adjust
+    self.num_augmentations = num_augmentations
 
     self.image_paths = [os.path.join(self.data_root, file_path) for file_path in os.listdir(self.data_root)]
     if self.mask_root is not None:
@@ -35,7 +45,7 @@ class BinarySegmentationDataset(Dataset):
       self.mask_paths = None
 
     self.num_images = len(self.image_paths)
-    self._length = self.num_images
+    self._length = self.num_images * self.num_augmentations
 
     self.interpolation = {
       "linear": PIL.Image.LINEAR,
@@ -44,18 +54,26 @@ class BinarySegmentationDataset(Dataset):
       "lanczos": PIL.Image.LANCZOS,
     }[interpolation]
 
+    self.aug = A.Compose([
+      A.RandomCrop(width=self.size, height=self.size) if self.random_crop else A.NoOp(),
+      A.HorizontalFlip() if self.horizontal_flip else A.NoOp(),
+      A.RandomBrightnessContrast() if self.brightness_contrast_adjust else A.NoOp(),
+    ])
+
   def __len__(self):
     return self._length
 
   def __getitem__(self, i):
     example = {}
-    image = Image.open(self.image_paths[i % self.num_images])
+    image = Image.open(self.image_paths[i // self.num_augmentations % self.num_images])
 
     if not image.mode == "RGB":
         image = image.convert("RGB")
 
     # default to score-sde preprocessing
     img = np.array(image).astype(np.uint8)
+
+    img = self.aug(image=img)['image']
 
     image = Image.fromarray(img)
     image = image.resize((self.size, self.size), resample=self.interpolation)
@@ -66,7 +84,7 @@ class BinarySegmentationDataset(Dataset):
     example["pixel_values"] = torch.from_numpy(image).permute(2, 0, 1)
 
     if self.mask_root is not None:
-      mask = Image.open(self.mask_paths[i % self.num_images])
+      mask = Image.open(self.mask_paths[i // self.num_augmentations % self.num_images])
       mask_torch = (TVF.pil_to_tensor(mask.resize((self.mask_size,self.mask_size),resample=self.interpolation))[0] > 0)
       mask_torch_oh = mask_torch[...,None]
       example["gt_masks_oh"] = mask_torch_oh
