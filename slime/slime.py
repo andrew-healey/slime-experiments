@@ -115,6 +115,7 @@ class SLiME(L.LightningModule):
         self.pred_map_multiplier = Multiplier(self.text_tokens)
 
         self.cross_norm = BatchNorm2d(len(cross_attn_nums),affine=True)
+        self.cross_map_norm = BatchNorm2d(self.text_tokens,affine=True)
 
         self.latest_xattns = []
         self.latest_means = []
@@ -209,9 +210,11 @@ class SLiME(L.LightningModule):
         
         del unified_self_maps
 
-        reshaped_cross_maps = mean_cross_map.view(bsz,self.text_tokens,*gt_dims).permute(0,2,3,1)
-        cross_preds = reshaped_cross_maps.view(bsz,-1,self.text_tokens)
-        cross_preds = self.cross_map_multiplier(cross_preds)
+        reshaped_cross_maps = mean_cross_map.view(bsz,self.text_tokens,*gt_dims)
+        # import pdb; pdb.set_trace()
+        rescaled_maps = self.cross_map_norm(reshaped_cross_maps)
+        cross_preds = rescaled_maps.permute(0,2,3,1).view(bsz,-1,self.text_tokens)
+        # cross_preds = self.cross_map_multiplier(cross_preds)
         # import pdb;pdb.set_trace()
         # cross_preds = self.cross_norm(cross_preds)
 
@@ -349,7 +352,7 @@ class SLiME(L.LightningModule):
         return pred
     
     def configure_optimizers(self):
-        return torch.optim.AdamW([
+        optimizer = torch.optim.AdamW([
             {'params': [self.cls_text_embeds], 'lr': self.lr},
             {'params': itertools.chain(
                 self.cross_layer_multiplier.parameters(),
@@ -357,6 +360,16 @@ class SLiME(L.LightningModule):
 
                 self.cross_map_multiplier.parameters(),
                 self.pred_map_multiplier.parameters(),
-                self.cross_norm.parameters()
+                self.cross_norm.parameters(),
+                self.cross_map_norm.parameters(),
             ), 'lr': self.multiplier_lr}
         ])
+
+        return optimizer
+
+        # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+        #     optimizer,
+        #     T_max=100,
+        #     eta_min=0,
+        # )
+        # return [optimizer], [scheduler]
