@@ -108,8 +108,8 @@ class SLiME(L.LightningModule):
 
         num_crosses,num_selfs = self.sd.num_attention_maps()
 
-        self.cross_layer_multiplier = Multiplier(num_crosses, no_bias=True)
-        self.self_layer_multiplier = Multiplier(num_selfs, no_bias=True)
+        self.cross_layer_multiplier = Multiplier(num_crosses)
+        self.self_layer_multiplier = Multiplier(num_selfs)
 
         self.cross_map_multiplier = Multiplier(self.text_tokens)
         self.pred_map_multiplier = Multiplier(self.text_tokens)
