@@ -28,6 +28,7 @@ class BinarySegmentationDataset(Dataset):
       horizontal_flip=True,
       brightness_contrast_adjust=True,
       num_augmentations=5,
+      use_augmentations=True,
   ):
     self.data_root = data_root
     self.mask_root = mask_root
@@ -37,15 +38,22 @@ class BinarySegmentationDataset(Dataset):
     self.horizontal_flip = horizontal_flip
     self.brightness_contrast_adjust = brightness_contrast_adjust
     self.num_augmentations = num_augmentations
+    self.use_augmentations = use_augmentations
 
     self.image_paths = [os.path.join(self.data_root, file_path) for file_path in os.listdir(self.data_root)]
+    self.image_paths.sort()
     if self.mask_root is not None:
       self.mask_paths = [os.path.join(self.mask_root, file_path) for file_path in os.listdir(self.mask_root)]
+      self.mask_paths.sort()
+
+      assert len(self.image_paths) == len(self.mask_paths),f"Number of images and masks must match. Got {len(self.image_paths)} images and {len(self.mask_paths)} masks."
+      assert [os.path.basename(image_path).split(".")[0] == os.path.basename(mask_path).split(".")[0] for image_path,mask_path in zip(self.image_paths,self.mask_paths)],"Image and mask names must match."
+
     else:
       self.mask_paths = None
 
     self.num_images = len(self.image_paths)
-    self._length = self.num_images * self.num_augmentations
+    self._length = self.num_images * self.num_augmentations if self.use_augmentations else self.num_images
 
     self.interpolation = {
       "linear": PIL.Image.LINEAR,
@@ -55,7 +63,7 @@ class BinarySegmentationDataset(Dataset):
     }[interpolation]
 
     self.aug = A.Compose([
-      A.RandomCrop(width=self.size, height=self.size) if self.random_crop else A.NoOp(),
+      A.RandomResizedCrop(height=self.size, width=self.size) if self.random_crop else A.NoOp(),
       A.HorizontalFlip() if self.horizontal_flip else A.NoOp(),
       A.RandomBrightnessContrast() if self.brightness_contrast_adjust else A.NoOp(),
     ])
@@ -65,7 +73,8 @@ class BinarySegmentationDataset(Dataset):
 
   def __getitem__(self, i):
     example = {}
-    image = Image.open(self.image_paths[i // self.num_augmentations % self.num_images])
+    img_path = self.image_paths[i % self.num_images]
+    image = Image.open(img_path)
 
     if not image.mode == "RGB":
         image = image.convert("RGB")
@@ -73,7 +82,15 @@ class BinarySegmentationDataset(Dataset):
     # default to score-sde preprocessing
     img = np.array(image).astype(np.uint8)
 
-    img = self.aug(image=img)['image']
+    if self.mask_root is not None:
+      mask_path = self.mask_paths[i // self.num_augmentations % self.num_images]
+      mask = Image.open(mask_path)
+      mask = mask.resize(image.size, resample=self.interpolation)
+      mask = np.array(mask).astype(np.uint8)
+      if self.use_augmentations:
+        augmented = self.aug(image=img, mask=mask)
+        img = augmented['image']
+        mask = augmented['mask']
 
     image = Image.fromarray(img)
     image = image.resize((self.size, self.size), resample=self.interpolation)
@@ -84,8 +101,9 @@ class BinarySegmentationDataset(Dataset):
     example["pixel_values"] = torch.from_numpy(image).permute(2, 0, 1)
 
     if self.mask_root is not None:
-      mask = Image.open(self.mask_paths[i // self.num_augmentations % self.num_images])
-      mask_torch = (TVF.pil_to_tensor(mask.resize((self.mask_size,self.mask_size),resample=self.interpolation))[0] > 0)
+      mask = Image.fromarray(mask)
+      mask = mask.resize((self.mask_size, self.mask_size), resample=self.interpolation)
+      mask_torch = (TVF.pil_to_tensor(mask)[0] > 0)
       mask_torch_oh = mask_torch[...,None]
       example["gt_masks_oh"] = mask_torch_oh
       # mask_torch_oh = F.one_hot(mask_torch,num_classes=2) # hardcode to (background,foreground)
