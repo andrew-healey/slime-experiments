@@ -365,11 +365,9 @@ class SLiME(L.LightningModule):
             ), 'lr': self.multiplier_lr}
         ])
 
-        return optimizer
-
-        # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-        #     optimizer,
-        #     T_max=100,
-        #     eta_min=0,
-        # )
-        # return [optimizer], [scheduler]
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer,
+            T_max=100,
+            eta_min=0,
+        )
+        return [optimizer], [scheduler]
