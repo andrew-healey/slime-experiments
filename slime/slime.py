@@ -108,8 +108,8 @@ class SLiME(L.LightningModule):
 
         num_crosses,num_selfs = self.sd.num_attention_maps()
 
-        self.cross_layer_multiplier = Multiplier(num_crosses)
-        self.self_layer_multiplier = Multiplier(num_selfs)
+        self.cross_layer_multiplier = Multiplier(num_crosses, no_bias=True)
+        self.self_layer_multiplier = Multiplier(num_selfs, no_bias=True)
 
         self.cross_map_multiplier = Multiplier(self.text_tokens)
         self.pred_map_multiplier = Multiplier(self.text_tokens)
@@ -171,7 +171,7 @@ class SLiME(L.LightningModule):
 
             final = resized.view(bsz,self.text_tokens,gt_tokens)
 
-            mean_cross_maps[:,i] = final * (1 * scale_factor)
+            mean_cross_maps[:,i] = final * (1 * scale_factor) * self.cross_layer_multiplier.weight[i]
 
             # # TODO simplify this - maybe remove norm?
             # scale = torch.exp(self.cross_layer_multiplier.weight[i])
