@@ -184,19 +184,18 @@ class SLiME(L.LightningModule):
             self,
             sd_loss,
             pred,
-            gt_masks,
+            # gt_masks,
             gt_masks_oh,
         ):
 
-        bsz,*gt_dims = gt_masks.shape
+        bsz,*gt_dims,_ = gt_masks_oh.shape
 
         assert self.classes == 1, f"Loss is only implemented for 1 class right now, got {self.classes}"
 
-        targets = gt_masks.view(bsz,-1).float()
+        targets = gt_masks_oh.view(bsz,-1,self.text_tokens).float()
 
-        # TODO: switch this to cross_entropy
-        ce_loss = F.binary_cross_entropy_with_logits(pred[:,:,1],targets)
-        mse_loss = torch.tensor(0,device=self.device)#F.mse_loss(pred,gt_masks_oh.view((bsz,-1,self.text_tokens)))
+        ce_loss = F.binary_cross_entropy_with_logits(pred[...,1:],targets[...,1:])
+        mse_loss = F.mse_loss(pred[...,1:],targets[...,1:])
 
         loss = ce_loss + self.alpha * mse_loss + self.beta * sd_loss
 
@@ -221,10 +220,9 @@ class SLiME(L.LightningModule):
 
         pixel_values = batch["pixel_values"].to(self.device)
 
-        gt_masks = batch["gt_masks"].to(self.device)
         gt_masks_oh = batch["gt_masks_oh"].to(self.device)
 
-        bsz,*gt_dims = gt_masks.shape
+        bsz,*gt_dims,_ = gt_masks_oh.shape
         assert len(gt_dims) == 2, f"Expected 2D masks, got {gt_dims}"
 
         input_text_embeds = self.input_text_embeds.clone().to(self.device)
@@ -250,7 +248,7 @@ class SLiME(L.LightningModule):
         loss = self.loss(
             sd_loss,
             pred,
-            gt_masks,
+            # gt_masks,
             gt_masks_oh,
         )
 

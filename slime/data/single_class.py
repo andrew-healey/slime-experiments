@@ -39,7 +39,7 @@ class BinarySegmentationDataset(Dataset):
     self._length = self.num_images
 
     self.interpolation = {
-      "linear": PIL.Image.LINEAR,
+      "linear": PIL.Image.BILINEAR,
       "bilinear": PIL.Image.BILINEAR,
       "bicubic": PIL.Image.BICUBIC,
       "lanczos": PIL.Image.LANCZOS,
@@ -72,7 +72,6 @@ class BinarySegmentationDataset(Dataset):
       mask_torch = (TVF.pil_to_tensor(mask.resize((self.mask_size,self.mask_size),resample=self.interpolation))[0] > 0).to(torch.int64)
       mask_torch_oh = F.one_hot(mask_torch,num_classes=2) # hardcode to (background,foreground)
 
-      example["gt_masks"] = mask_torch
       example["gt_masks_oh"] = mask_torch_oh
     return example
 
