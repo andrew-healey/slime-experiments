@@ -207,6 +207,8 @@ class SLiME(L.LightningModule):
             "ce_loss": ce_loss,
         })
 
+        print("pred", round(pred.min().cpu().item(), 2), round(pred.max().cpu().item(), 2), "ce loss", round(ce_loss.cpu().item(), 2), "mse loss", round(mse_loss.cpu().item(), 2))
+
         return loss
 
 
