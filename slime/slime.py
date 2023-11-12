@@ -244,7 +244,7 @@ class SLiME(L.LightningModule):
             bsz,gt_dims,
         )
 
-        loss,losses = self.loss(
+        loss = self.loss(
             sd_loss,
             pred,
             gt_masks,
