@@ -2,7 +2,6 @@ import numpy as np
 import torch
 from torch import nn
 import torch.nn.functional as F
-import torchvision.transforms.functional as TVF
 import torch.utils.checkpoint
 from torch.utils.data import Dataset
 import pytorch_lightning as L
@@ -130,6 +129,8 @@ class SLiME(L.LightningModule):
 
         normed_cross_maps = [map/map.norm(dim=-1,keepdim=True) for map in unified_cross_maps] # normalize rows
         normed_self_maps = [map/map.norm(dim=-2,keepdim=True) for map in unified_self_maps] # normalize cols
+
+        self.latest_selfs = [map.detach().cpu().numpy() for map in normed_self_maps]
 
         mean_cross_maps = torch.zeros((bsz,self.text_tokens,gt_tokens),device=self.device)
         for i,map in enumerate(normed_cross_maps):
