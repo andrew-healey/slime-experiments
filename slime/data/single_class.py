@@ -24,7 +24,7 @@ class BinarySegmentationDataset(Dataset):
       size=512,
       mask_size=64,
       interpolation="bicubic",
-      random_crop=True,
+      random_crop=False,
       horizontal_flip=True,
       brightness_contrast_adjust=True,
       num_augmentations=5,
