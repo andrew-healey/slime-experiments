@@ -37,11 +37,11 @@ class SemanticSegmentationDataset(Dataset):
             interpolation="bicubic",
     ):
         self.detection_dataset = detection_dataset
-        self.images = list(self.detection_dataset.images.values())
+        self.image_names = list(self.detection_dataset.images.keys())
         self.size = size
         self.mask_size = mask_size
 
-        self.num_images = len(self.images)
+        self.num_images = len(self.image_names)
         self.num_classes = len(self.detection_dataset.classes)
         self._length = self.num_images
 
@@ -56,7 +56,7 @@ class SemanticSegmentationDataset(Dataset):
         return self._length
     
     def __getitem__(self, i):
-        img_name = self.images[i % self.num_images]
+        img_name = self.image_names[i % self.num_images]
         image:ndarray = self.detection_dataset.images[img_name]
         detections:Detections = self.detection_dataset.annotations[img_name]
 
@@ -73,7 +73,7 @@ class SemanticSegmentationDataset(Dataset):
         example = {}
         example["pixel_values"] = torch.from_numpy(image).permute(2, 0, 1)
 
-        mask_torch_oh = torch.zeros((self.num_classes,self.size,self.size),dtype=bool)
+        mask_torch_oh = torch.zeros((self.mask_size,self.mask_size,self.num_classes),dtype=bool)
         for i in range(len(detections)):
             class_id = detections.class_id[i]
             mask_np = detections.mask[i]
@@ -81,7 +81,8 @@ class SemanticSegmentationDataset(Dataset):
             # resize mask, convert to torch, and convert to one-hot
             mask = Image.fromarray(mask_np)
             mask = mask.resize((self.mask_size,self.mask_size),resample=self.interpolation)
-            mask_torch_oh[class_id] |= (TVF.pil_to_tensor(mask)[0] > 0).to(torch.int64)
+            # print(TVF.pil_to_tensor(mask).shape,mask_torch_oh.shape)
+            mask_torch_oh[...,class_id] |= (TVF.pil_to_tensor(mask).squeeze(0) > 0).to(bool)
 
         example["gt_masks_oh"] = mask_torch_oh
         return example

@@ -190,8 +190,6 @@ class SLiME(L.LightningModule):
 
         bsz,*gt_dims,_ = gt_masks_oh.shape
 
-        assert self.classes == 1, f"Loss is only implemented for 1 class right now, got {self.classes}"
-
         targets = gt_masks_oh.view(bsz,-1,self.text_tokens).float()
 
         ce_loss = F.binary_cross_entropy_with_logits(pred[...,1:],targets[...,1:])
